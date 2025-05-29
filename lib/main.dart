@@ -31,20 +31,25 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
-      child: MaterialApp(
-        title: 'Turf App',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
-        debugShowCheckedModeBanner: false,
-        initialRoute: '/splash',
-        routes: {
-          '/splash': (context) => SplashScreen(),
-          '/': (context) => HomeScreen(),
-          '/venue_detail': (context) => VenueDetailScreen(),
-          '/summary': (context) => CheckoutSummaryPage(),
-          '/login': (context) => LoginScreen(),
+      child: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          return MaterialApp(
+            title: 'Turf App',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+              useMaterial3: true,
+            ),
+            debugShowCheckedModeBanner: false,
+            initialRoute: '/splash',
+            routes: {
+              '/splash': (context) => SplashScreen(),
+              '/': (context) =>
+                  authProvider.isLoggedIn ? HomeScreen() : LoginScreen(),
+              '/venue_detail': (context) => VenueDetailScreen(),
+              '/summary': (context) => CheckoutSummaryPage(),
+              '/login': (context) => LoginScreen(),
+            },
+          );
         },
       ),
     );
