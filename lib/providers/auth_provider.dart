@@ -8,11 +8,14 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
   String? _successMessage;
   bool _isLoggedIn = false;
-
+  String? _userName;
+  String? _userEmail;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get successMessage => _successMessage;
   bool get isLoggedIn => _isLoggedIn;
+  String? get userName => _userName;
+  String? get userEmail => _userEmail;
 
   AuthProvider() {
     _checkLoginStatus();
@@ -21,6 +24,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    _userName = prefs.getString('name');
+    _userEmail = prefs.getString('email');
     notifyListeners();
   }
 
@@ -42,6 +47,12 @@ class AuthProvider extends ChangeNotifier {
       await prefs.setString('email', email);
       await prefs.setString('password', password);
 
+      // Extract name from email (you can modify this based on your API response)
+      final name = email.split('@')[0];
+      await prefs.setString('name', name);
+      _userName = name;
+      _userEmail = email;
+
       _isLoggedIn = true;
       _successMessage = message;
       return true;
@@ -58,6 +69,8 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     _isLoggedIn = false;
+    _userName = null;
+    _userEmail = null;
     notifyListeners();
   }
 

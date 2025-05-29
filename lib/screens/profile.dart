@@ -1,7 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:turf2/providers/auth_provider.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _userEmail = '';
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userEmail = prefs.getString('email') ?? '';
+      _userName = prefs.getString('name') ?? 'User';
+    });
+  }
+
+  Future<void> _handleLogout() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.logout();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +100,7 @@ class ProfileScreen extends StatelessWidget {
         SizedBox(height: 16),
         // Name
         Text(
-          'Esther Howard',
+          _userName,
           style: TextStyle(
             color: Colors.white,
             fontSize: 24,
@@ -78,7 +111,7 @@ class ProfileScreen extends StatelessWidget {
         SizedBox(height: 4),
         // Email
         Text(
-          'estherhoward@gmail.com',
+          _userEmail,
           style: TextStyle(
             color: Colors.white70,
             fontSize: 16,
@@ -222,9 +255,7 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildLogoutItem() {
     return GestureDetector(
-      onTap: () {
-        // Handle logout action
-      },
+      onTap: _handleLogout,
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
