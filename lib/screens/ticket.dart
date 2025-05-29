@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 // import 'package:share_plus/share_plus.dart';
 import 'package:turf2/models/booking_data.dart';
 import 'package:turf2/screens/home_screen.dart';
-import 'package:turf2/screens/intilcet.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Modified Custom clipper for bottom of ticket with serrated edges
@@ -16,17 +15,15 @@ class TicketBottomClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    
+
     // Start at top left
     path.moveTo(0, 0);
-    
+
     // Top edge with curved connection from tear-off part
     double curveHeight = 15;
-    path.quadraticBezierTo(size.width / 4, 0 - curveHeight, 
-        size.width / 2, 0);
-    path.quadraticBezierTo(3 * size.width / 4, 0 + curveHeight, 
-        size.width, 0);
-    
+    path.quadraticBezierTo(size.width / 4, 0 - curveHeight, size.width / 2, 0);
+    path.quadraticBezierTo(3 * size.width / 4, 0 + curveHeight, size.width, 0);
+
     // Right edge with serrated pattern
     final teethHeight = 5.0;
     for (int i = 0; i < 10; i++) {
@@ -34,23 +31,26 @@ class TicketBottomClipper extends CustomClipper<Path> {
       path.lineTo(size.width - teethHeight, i * step + (step / 2));
       path.lineTo(size.width, (i + 1) * step);
     }
-    
+
     // Create serrated bottom edge
     final teethCount = 20;
     final teethWidth = size.width / teethCount;
-    
+
     for (int i = teethCount - 1; i >= 0; i--) {
-      path.lineTo((i * teethWidth) + (teethWidth / 2), size.height - teethHeight);
+      path.lineTo(
+        (i * teethWidth) + (teethWidth / 2),
+        size.height - teethHeight,
+      );
       path.lineTo(i * teethWidth, size.height);
     }
-    
+
     // Left edge with serrated pattern
     for (int i = 9; i >= 0; i--) {
       final step = size.height / 10;
       path.lineTo(teethHeight, i * step + (step / 2));
       path.lineTo(0, i * step);
     }
-    
+
     path.close();
     return path;
   }
@@ -71,42 +71,50 @@ class TicketTopClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    
+
     // Start at top left
     path.moveTo(0, 0);
-    
+
     // Create serrated top edge
     final teethCount = 20;
     final teethWidth = size.width / teethCount;
     final teethHeight = 5.0;
-    
+
     for (int i = 0; i < teethCount; i++) {
       path.lineTo((i * teethWidth) + (teethWidth / 2), teethHeight);
       path.lineTo((i + 1) * teethWidth, 0);
     }
-    
+
     // Right edge with serrated pattern
     for (int i = 0; i < 10; i++) {
       final step = size.height / 10;
       path.lineTo(size.width - teethHeight, i * step + (step / 2));
       path.lineTo(size.width, (i + 1) * step);
     }
-    
+
     // Bottom edge with curved connection for the tear-off part
     path.lineTo(size.width, size.height);
     double curveHeight = 15;
-    path.quadraticBezierTo(3 * size.width / 4, size.height - curveHeight, 
-        size.width / 2, size.height);
-    path.quadraticBezierTo(size.width / 4, size.height + curveHeight, 
-        0, size.height);
-    
+    path.quadraticBezierTo(
+      3 * size.width / 4,
+      size.height - curveHeight,
+      size.width / 2,
+      size.height,
+    );
+    path.quadraticBezierTo(
+      size.width / 4,
+      size.height + curveHeight,
+      0,
+      size.height,
+    );
+
     // Left edge with serrated pattern
     for (int i = 9; i >= 0; i--) {
       final step = size.height / 10;
       path.lineTo(teethHeight, i * step + (step / 2));
       path.lineTo(0, i * step);
     }
-    
+
     path.close();
     return path;
   }
@@ -115,7 +123,8 @@ class TicketTopClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderStateMixin {
+class _TicketScreenState extends State<TicketScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -123,13 +132,13 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
 
   bool _isDownloading = false;
   bool _isSharing = false;
-  
+
   // Booking data from provider
   BookingData? bookingData;
 
   // GlobalKey for capturing the ticket widget
   final GlobalKey _ticketKey = GlobalKey();
-  
+
   // WhatsApp phone number
   final String _whatsappNumber = '6238440943';
 
@@ -151,43 +160,40 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    
+
     // Get booking data from provider
     bookingData = BookingDataProvider().getBookingData();
-    
+
     // Initialize animation controller
     _animationController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 1200),
     );
-    
+
     // Setup fade animation
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Interval(0.0, 0.5, curve: Curves.easeOut),
-    ));
-    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(0.0, 0.5, curve: Curves.easeOut),
+      ),
+    );
+
     // Setup scale animation
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Interval(0.2, 0.8, curve: Curves.easeOutBack),
-    ));
-    
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(0.2, 0.8, curve: Curves.easeOutBack),
+      ),
+    );
+
     // Setup rotate animation
-    _rotateAnimation = Tween<double>(
-      begin: 0.02,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Interval(0.0, 0.6, curve: Curves.elasticOut),
-    ));
-    
+    _rotateAnimation = Tween<double>(begin: 0.02, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(0.0, 0.6, curve: Curves.elasticOut),
+      ),
+    );
+
     // Start animation
     _animationController.forward();
   }
@@ -223,15 +229,16 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildDetailRow(String label1, String value1, String label2, String value2) {
+  Widget _buildDetailRow(
+    String label1,
+    String value1,
+    String label2,
+    String value2,
+  ) {
     return Row(
       children: [
-        Expanded(
-          child: _buildDetailItem(label1, value1),
-        ),
-        Expanded(
-          child: _buildDetailItem(label2, value2),
-        ),
+        Expanded(child: _buildDetailItem(label1, value1)),
+        Expanded(child: _buildDetailItem(label2, value2)),
       ],
     );
   }
@@ -251,7 +258,7 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
       ),
     );
   }
-  
+
   Widget _buildTicket() {
     return Center(
       child: SizedBox(
@@ -301,7 +308,10 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                           ],
                         ),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF00854A).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -337,7 +347,11 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                               SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Icon(Icons.calendar_today, color: const Color(0xFF00854A), size: 14),
+                                  Icon(
+                                    Icons.calendar_today,
+                                    color: const Color(0xFF00854A),
+                                    size: 14,
+                                  ),
                                   SizedBox(width: 4),
                                   Text(
                                     bookingData?.date ?? '23 May 2025',
@@ -352,7 +366,11 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                               SizedBox(height: 2),
                               Row(
                                 children: [
-                                  Icon(Icons.access_time, color: const Color(0xFF00854A), size: 14),
+                                  Icon(
+                                    Icons.access_time,
+                                    color: const Color(0xFF00854A),
+                                    size: 14,
+                                  ),
                                   SizedBox(width: 4),
                                   Text(
                                     '${bookingData?.startTime ?? '6:00 PM'} - ${bookingData?.endTime ?? '8:00 PM'}',
@@ -381,7 +399,8 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                               ),
                               SizedBox(height: 4),
                               Text(
-                                bookingData?.turfDetails.name ?? 'The Sports Habitat',
+                                bookingData?.turfDetails.name ??
+                                    'The Sports Habitat',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontSize: 12,
@@ -390,7 +409,8 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                               ),
                               SizedBox(height: 2),
                               Text(
-                                bookingData?.turfDetails.location ?? 'Hwadaridong Sport Fields, Pankrati, Patirkarti',
+                                bookingData?.turfDetails.location ??
+                                    'Hwadaridong Sport Fields, Pankrati, Patirkarti',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -475,7 +495,10 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                             height: 100,
                             padding: EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFF00854A), width: 2),
+                              border: Border.all(
+                                color: const Color(0xFF00854A),
+                                width: 2,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                               color: Colors.white,
                               boxShadow: [
@@ -511,23 +534,33 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Divider(
-                        color: Colors.black12,
-                        thickness: 1,
-                      ),
+                      child: Divider(color: Colors.black12, thickness: 1),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
                       child: Column(
                         children: [
-                          _buildDetailRow('NAME', _fakeBookingDetails['name'], 'MOBILE', _fakeBookingDetails['mobile']),
+                          _buildDetailRow(
+                            'NAME',
+                            _fakeBookingDetails['name'],
+                            'MOBILE',
+                            _fakeBookingDetails['mobile'],
+                          ),
                           SizedBox(height: 8),
-                          _buildDetailRow('PLAYERS', _fakeBookingDetails['players'], 'AMOUNT', _fakeBookingDetails['amount']),
+                          _buildDetailRow(
+                            'PLAYERS',
+                            _fakeBookingDetails['players'],
+                            'AMOUNT',
+                            _fakeBookingDetails['amount'],
+                          ),
                           SizedBox(height: 8),
                           // Terms and Conditions Section
                           Container(
                             width: double.infinity,
-                            padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            padding: EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: Color(0xFFF5F5F5),
                               borderRadius: BorderRadius.circular(8),
@@ -538,7 +571,11 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                               children: [
                                 Row(
                                   children: [
-                                    Icon(Icons.gavel, size: 12, color: const Color(0xFF00854A)),
+                                    Icon(
+                                      Icons.gavel,
+                                      size: 12,
+                                      color: const Color(0xFF00854A),
+                                    ),
                                     SizedBox(width: 4),
                                     Text(
                                       'Terms & Conditions',
@@ -565,7 +602,11 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                           SizedBox(height: 8),
                           Row(
                             children: [
-                              Icon(Icons.security, size: 12, color: const Color(0xFF00854A)),
+                              Icon(
+                                Icons.security,
+                                size: 12,
+                                color: const Color(0xFF00854A),
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 'Transaction ID: ',
@@ -588,7 +629,10 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                           SizedBox(height: 8),
                           Container(
                             width: double.infinity,
-                            padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            padding: EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: Color(0xFFF5F5F5),
                               borderRadius: BorderRadius.circular(8),
@@ -596,7 +640,11 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.info_outline, size: 12, color: const Color(0xFF00854A)),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 12,
+                                  color: const Color(0xFF00854A),
+                                ),
                                 SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -631,9 +679,13 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
 
     try {
       // Capture the widget as an image
-      RenderRepaintBoundary boundary = _ticketKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary =
+          _ticketKey.currentContext!.findRenderObject()
+              as RenderRepaintBoundary;
       var image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       // Save the image to a temporary file
@@ -642,15 +694,20 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
       await file.writeAsBytes(pngBytes);
 
       // Create a message for WhatsApp
-      final message = 'Check out my Premium Turf Booking! 🏆\n'
+      final message =
+          'Check out my Premium Turf Booking! 🏆\n'
           'Sport: ${_fakeBookingDetails['sportName']}\n'
           'Date: ${_fakeBookingDetails['date']}\n'
           'Time: ${_fakeBookingDetails['bookingTime']}\n';
 
       // Launch WhatsApp with the phone number
-      final whatsappUrl = 'https://wa.me/+91${_whatsappNumber}?text=${Uri.encodeComponent(message)}';
+      final whatsappUrl =
+          'https://wa.me/+91${_whatsappNumber}?text=${Uri.encodeComponent(message)}';
       if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
-        await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
+        await launchUrl(
+          Uri.parse(whatsappUrl),
+          mode: LaunchMode.externalApplication,
+        );
       } else {
         // If WhatsApp is not installed, share via normal share dialog
         // await Share.shareXFiles([XFile(file.path)], text: message);
@@ -666,11 +723,12 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
 
   // Method to copy booking link to clipboard
   void _copyBookingLink() {
-    final bookingLink = 'https://premiumturf.app/booking/${_fakeBookingDetails['id']}';
+    final bookingLink =
+        'https://premiumturf.app/booking/${_fakeBookingDetails['id']}';
     Clipboard.setData(ClipboardData(text: bookingLink));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Booking link copied to clipboard')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Booking link copied to clipboard')));
   }
 
   // Method to show share options dialog
@@ -678,61 +736,62 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Share Ticket',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+      builder:
+          (context) => Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              border: Border.all(color: Colors.white10),
             ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildShareOptionWithImage(
-                  imagePath: 'assets/whatsapp.png',
-                  color: Color(0xFF25D366),
-                  label: 'WhatsApp',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _shareViaWhatsApp();
-                  },
+                Text(
+                  'Share Ticket',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                _buildShareOption(
-                  icon: Icons.share,
-                  color: Colors.blue,
-                  label: 'Share',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _shareTicket();
-                  },
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildShareOptionWithImage(
+                      imagePath: 'assets/whatsapp.png',
+                      color: Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _shareViaWhatsApp();
+                      },
+                    ),
+                    _buildShareOption(
+                      icon: Icons.share,
+                      color: Colors.blue,
+                      label: 'Share',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _shareTicket();
+                      },
+                    ),
+                    _buildShareOption(
+                      icon: Icons.copy,
+                      color: Colors.amber,
+                      label: 'Copy Link',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _copyBookingLink();
+                      },
+                    ),
+                  ],
                 ),
-                _buildShareOption(
-                  icon: Icons.copy,
-                  color: Colors.amber,
-                  label: 'Copy Link',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _copyBookingLink();
-                  },
-                ),
+                SizedBox(height: 20),
               ],
             ),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -758,15 +817,12 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
             child: Icon(icon, color: color, size: 28),
           ),
           SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(color: Colors.white, fontSize: 12),
-          ),
+          Text(label, style: TextStyle(color: Colors.white, fontSize: 12)),
         ],
       ),
     );
   }
-  
+
   // Helper method to build share option button with image
   Widget _buildShareOptionWithImage({
     required String imagePath,
@@ -788,18 +844,11 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
             ),
             child: Padding(
               padding: const EdgeInsets.all(12.0),
-              child: Image.asset(
-                imagePath,
-                width: 28,
-                height: 28,
-              ),
+              child: Image.asset(imagePath, width: 28, height: 28),
             ),
           ),
           SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(color: Colors.white, fontSize: 12),
-          ),
+          Text(label, style: TextStyle(color: Colors.white, fontSize: 12)),
         ],
       ),
     );
@@ -813,9 +862,13 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
 
     try {
       // Capture the widget as an image
-      RenderRepaintBoundary boundary = _ticketKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary =
+          _ticketKey.currentContext!.findRenderObject()
+              as RenderRepaintBoundary;
       var image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       // Save the image to a temporary file
@@ -840,13 +893,18 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
     });
 
     try {
-      final RenderRepaintBoundary boundary = _ticketKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final RenderRepaintBoundary boundary =
+          _ticketKey.currentContext!.findRenderObject()
+              as RenderRepaintBoundary;
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       final Uint8List imageBytes = byteData!.buffer.asUint8List();
 
       final directory = await getTemporaryDirectory();
-      final String fileName = 'turf_ticket_${_fakeBookingDetails['transactionId']}.png';
+      final String fileName =
+          'turf_ticket_${_fakeBookingDetails['transactionId']}.png';
       final File file = File('${directory.path}/$fileName');
 
       await file.writeAsBytes(imageBytes);
@@ -896,11 +954,18 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
+                      icon: Icon(
+                        Icons.arrow_back_ios,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     Expanded(
@@ -943,10 +1008,13 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                               builder: (context, child) {
                                 return Container(
                                   width: 60 + (10 * _animationController.value),
-                                  height: 60 + (10 * _animationController.value),
+                                  height:
+                                      60 + (10 * _animationController.value),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: const Color(0xFF00854A).withOpacity(0.2 - (0.2 * _animationController.value)),
+                                    color: const Color(0xFF00854A).withOpacity(
+                                      0.2 - (0.2 * _animationController.value),
+                                    ),
                                   ),
                                 );
                               },
@@ -959,7 +1027,9 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                                 color: const Color(0xFF00854A),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF00854A).withOpacity(0.4),
+                                    color: const Color(
+                                      0xFF00854A,
+                                    ).withOpacity(0.4),
                                     blurRadius: 12,
                                     spreadRadius: 2,
                                   ),
@@ -987,10 +1057,7 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                         SizedBox(height: 4),
                         Text(
                           'Your slot has been booked!',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                         SizedBox(height: 20),
                       ],
@@ -999,7 +1066,10 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                 },
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 8.0,
+                ),
                 child: AnimatedBuilder(
                   animation: _animationController,
                   builder: (context, child) {
@@ -1017,15 +1087,20 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 20.0,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.push(
-                            context, 
-                            MaterialPageRoute(builder: (context) => const HomeScreen()),
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HomeScreen(),
+                            ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -1045,7 +1120,10 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                             SizedBox(width: 8),
                             Text(
                               'Home',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -1064,26 +1142,30 @@ class _TicketScreenState extends State<TicketScreen> with SingleTickerProviderSt
                           ),
                           elevation: 3,
                         ),
-                        child: _isDownloading
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.share, size: 16),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Share Ticket',
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        child:
+                            _isDownloading
+                                ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
                                   ),
-                                ],
-                              ),
+                                )
+                                : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.share, size: 16),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Share Ticket',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                       ),
                     ),
                   ],
