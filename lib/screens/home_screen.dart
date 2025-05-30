@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:turf2/screens/profile.dart';
 import 'package:turf2/screens/promotional_banner.dart';
 import 'package:turf2/widgets/placeholder_image.dart';
@@ -14,8 +16,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final int _currentBannerIndex = 0;
   bool _showSlots = true;
-  final String _currentAddress = 'Koramangala, Bengaluru';
-  bool _showLocationDialog = true; // Controls whether to show the location permission dialog
+  String _currentAddress = 'Loading location...';
+  bool _showLocationDialog = true;
+  bool _isLoadingLocation = true;
 
   final List<Map<String, dynamic>> _sportCategories = [
     {'name': 'Football', 'image': 'assets/football.jpg'},
@@ -25,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     {'name': 'Basketball', 'image': 'assets/basketball.jpg'},
     {'name': 'Tennis', 'image': 'assets/tennis.jpg'},
   ];
-  
+
   final List<Map<String, dynamic>> _promotions = [
     {
       'title': 'Games Drops',
@@ -43,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'image': 'assets/BG.jpg',
     },
   ];
-  
+
   final List<Map<String, dynamic>> _turfList = [
     {
       'name': 'The Sport Habitat',
@@ -73,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'image': 'assets/3.jpg',
     },
   ];
-  
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -107,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        
+
         // Location permission dialog with transparent background
         if (_showLocationDialog)
           Positioned.fill(
@@ -121,47 +124,124 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-  
+
   @override
   void initState() {
     super.initState();
     _checkLocationPermission();
   }
+
+  Future<void> _checkLocationPermission() async {
+    final status = await Permission.location.status;
+    if (status.isGranted) {
+      setState(() {
+        _showLocationDialog = false;
+      });
+      _getCurrentLocation();
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      setState(() {
+        _isLoadingLocation = true;
+      });
+
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _currentAddress = 'Location services are disabled';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        setState(() {
+          _currentAddress =
+              '${place.locality ?? ''}, ${place.administrativeArea ?? ''}';
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _currentAddress = 'Unable to get location';
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  Future<void> _requestLocationPermission() async {
+    final status = await Permission.location.request();
+    if (status.isGranted) {
+      setState(() {
+        _showLocationDialog = false;
+      });
+      _getCurrentLocation();
+    }
+  }
+
   Widget _buildAppBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.location_on,
-                  color: const Color(0xFF00854A),
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _currentAddress,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+          GestureDetector(
+            onTap: _getCurrentLocation,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    color: const Color(0xFF00854A),
+                    size: 18,
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Colors.white.withOpacity(0.7),
-                  size: 18,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  _isLoadingLocation
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          _currentAddress,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Colors.white.withOpacity(0.7),
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           ),
           const Spacer(),
@@ -172,21 +252,20 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: InkWell(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProfileScreen(), // Replace with your ProfileScreen class
-      ),
-    );
-  },
-  child: Icon(
-    Icons.person_2_outlined,
-    color: Colors.white,
-    size: 22,
-  ),
-)
-
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileScreen(),
+                  ),
+                );
+              },
+              child: Icon(
+                Icons.person_2_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
           ),
         ],
       ),
@@ -225,29 +304,27 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Color(0xFF00854A),
             size: 48,
           ),
-           SizedBox(height: 16),
-           Text(
+          SizedBox(height: 16),
+          Text(
             'Location Permission',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.none,
-
+              decoration: TextDecoration.none,
             ),
           ),
-           SizedBox(height: 12),
-           Text(
+          SizedBox(height: 12),
+          Text(
             'Turf needs access to your location to find nearby venues. Please grant location permission.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white70,
               fontSize: 14,
-                          decoration: TextDecoration.none,
-
+              decoration: TextDecoration.none,
             ),
           ),
-           SizedBox(height: 24),
+          SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -260,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white54,
                 ),
-                child:  Text('Not Now'),
+                child: Text('Not Now'),
               ),
               ElevatedButton(
                 onPressed: _requestLocationPermission,
@@ -358,12 +435,14 @@ class _HomeScreenState extends State<HomeScreen> {
               return Container(
                 // color: Colors.amber,
                 width: 65, // Increased width for the container
-                margin: const EdgeInsets.symmetric(horizontal: 8), // Increased margin
+                margin: const EdgeInsets.symmetric(
+                    horizontal: 8), // Increased margin
                 child: Column(
                   children: [
                     Container(
                       width: 70, // Increased circle width
-                      height: 70, // Increased circle height to make it perfectly round
+                      height:
+                          70, // Increased circle height to make it perfectly round
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -372,8 +451,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         image: DecorationImage(
                           image: AssetImage(sport['image']),
-                          fit: BoxFit.cover, // Changed to cover for better image display
-                          onError: (exception, stackTrace) => const Icon(Icons.sports_soccer, color: Colors.white),
+                          fit: BoxFit
+                              .cover, // Changed to cover for better image display
+                          onError: (exception, stackTrace) => const Icon(
+                              Icons.sports_soccer,
+                              color: Colors.white),
                         ),
                       ),
                     ),
@@ -420,7 +502,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _showSlots ? const Color(0xFF00854A) : Colors.transparent,
+                    color: _showSlots
+                        ? const Color(0xFF00854A)
+                        : Colors.transparent,
                     borderRadius: const BorderRadius.all(Radius.circular(30)),
                   ),
                   child: const Text(
@@ -445,7 +529,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: !_showSlots ? const Color(0xFF00854A) : Colors.transparent,
+                    color: !_showSlots
+                        ? const Color(0xFF00854A)
+                        : Colors.transparent,
                     borderRadius: const BorderRadius.all(Radius.circular(30)),
                   ),
                   child: const Text(
@@ -469,179 +555,163 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> _buildTurfList() {
     return _turfList.map((turf) {
       return GestureDetector(
-        onTap: () {
-          Navigator.pushNamed(context, '/venue_detail', arguments: turf);
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.transparent, // Transparent background
-            borderRadius: BorderRadius.circular(12),
-          ),
-          height: 85, // Increased height to prevent overflow
-          child: Row(
-            children: [
-              // Left side - Turf image
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-              ),
-              child: turf['image'].startsWith('assets/') && turf['image'].endsWith('.jpg')
-                ? Image.asset(
-                    turf['image'], // Use the image path from the turf data
-                    height: 80,
-                    width: 80,
-                    fit: BoxFit.cover,
-                  )
-                : PlaceholderImage(
-                    width: 80,
-                    height: 80,
-                    label: turf['sport'],
-                    color: const Color(0xFF00854A),
-                  ),
+          onTap: () {
+            Navigator.pushNamed(context, '/venue_detail', arguments: turf);
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.transparent, // Transparent background
+              borderRadius: BorderRadius.circular(12),
             ),
-            // Right side - Turf details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Turf name
-                    Text(
-                      turf['name'],
-                      style: const TextStyle(
-                        fontFamily: 'Nunito',
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    // Location info
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
+            height: 85, // Increased height to prevent overflow
+            child: Row(
+              children: [
+                // Left side - Turf image
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                  child: turf['image'].startsWith('assets/') &&
+                          turf['image'].endsWith('.jpg')
+                      ? Image.asset(
+                          turf[
+                              'image'], // Use the image path from the turf data
+                          height: 80,
+                          width: 80,
+                          fit: BoxFit.cover,
+                        )
+                      : PlaceholderImage(
+                          width: 80,
+                          height: 80,
+                          label: turf['sport'],
                           color: const Color(0xFF00854A),
-                          size: 14,
                         ),
-                        const SizedBox(width: 4),
+                ),
+                // Right side - Turf details
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Turf name
                         Text(
-                          '${turf['distance']} | ${turf['location']}',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            color: Colors.grey.shade400,
+                          turf['name'],
+                          style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 3),
+                        // Location info
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              color: const Color(0xFF00854A),
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${turf['distance']} | ${turf['location']}',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                color: Colors.grey.shade400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        // Sport type and rating
+                        Row(
+                          children: [
+                            // Sport icon and name
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade800,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    turf['sport'] == 'Basketball'
+                                        ? Icons.sports_basketball
+                                        : Icons.sports_soccer,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    turf['sport'],
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 10,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            // Rating with black background
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    turf['rating'].toString(),
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '(${turf['reviews']})',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 10,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    // Sport type and rating
-                    Row(
-                      children: [
-                        // Sport icon and name
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade800,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                turf['sport'] == 'Basketball'
-                                    ? Icons.sports_basketball
-                                    : Icons.sports_soccer,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                turf['sport'],
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        // Rating with black background
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                turf['rating'].toString(),
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                '(${turf['reviews']})',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 10,
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ));
+          ));
     }).toList();
-  }
-  // Check if location permission is granted
-  Future<void> _checkLocationPermission() async {
-    final status = await Permission.location.status;
-    if (status.isGranted) {
-      setState(() {
-        _showLocationDialog = false;
-      });
-    }
-  }
-
-
-  // Request location permission
-  Future<void> _requestLocationPermission() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      setState(() {
-        _showLocationDialog = false;
-      });
-    }
   }
 }
