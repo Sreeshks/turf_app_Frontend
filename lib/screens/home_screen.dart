@@ -5,6 +5,11 @@ import 'package:geocoding/geocoding.dart';
 import 'package:turf2/screens/profile.dart';
 import 'package:turf2/screens/promotional_banner.dart';
 import 'package:turf2/widgets/placeholder_image.dart';
+import 'package:turf2/screens/map_search_screen.dart';
+import 'package:turf2/models/turf.dart';
+import 'package:turf2/Api/baseurl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _currentAddress = 'Loading location...';
   bool _showLocationDialog = true;
   bool _isLoadingLocation = true;
+  List<Turf> _turfs = [];
+  bool _isLoadingTurfs = true;
 
   final List<Map<String, dynamic>> _sportCategories = [
     {'name': 'Football', 'image': 'assets/football.jpg'},
@@ -44,36 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'title': 'Group Bookings',
       'subtitle': 'Special rates for team bookings →',
       'image': 'assets/BG.jpg',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _turfList = [
-    {
-      'name': 'The Sport Habitat',
-      'distance': '7.5 km',
-      'location': '1548 Stiger Dr, Mesa',
-      'sport': 'Basketball',
-      'rating': 4.2,
-      'reviews': 1333,
-      'image': 'assets/1.jpg',
-    },
-    {
-      'name': 'Coolulu TurfPark',
-      'distance': '5.2 km',
-      'location': '3rd Cross Rd, Jakkasandra',
-      'sport': 'Football',
-      'rating': 4.5,
-      'reviews': 987,
-      'image': 'assets/2.jpg',
-    },
-    {
-      'name': 'Kiara Sports World',
-      'distance': '3.8 km',
-      'location': '8th Block, Bengaluru',
-      'sport': 'Cricket',
-      'rating': 4.7,
-      'reviews': 1156,
-      'image': 'assets/3.jpg',
     },
   ];
 
@@ -129,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _checkLocationPermission();
+    _fetchTurfs();
   }
 
   Future<void> _checkLocationPermission() async {
@@ -194,13 +172,53 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showLocationSelectionDialog() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MapSearchScreen(),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _currentAddress = result;
+      });
+    }
+  }
+
+  Future<void> _fetchTurfs() async {
+    try {
+      final response = await http
+          .get(Uri.parse('${BaseUrl.baseUrl}/turf-owner/getallturfs'));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _turfs = data.map((json) => Turf.fromJson(json)).toList();
+          _isLoadingTurfs = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingTurfs = false;
+        });
+        // Handle error
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingTurfs = false;
+      });
+      // Handle error
+    }
+  }
+
   Widget _buildAppBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           GestureDetector(
-            onTap: _getCurrentLocation,
+            onTap: _showLocationSelectionDialog,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -553,165 +571,137 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> _buildTurfList() {
-    return _turfList.map((turf) {
+    if (_isLoadingTurfs) {
+      return [
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00854A)),
+          ),
+        ),
+      ];
+    }
+
+    if (_turfs.isEmpty) {
+      return [
+        const Center(
+          child: Text(
+            'No turfs found',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return _turfs.map((turf) {
       return GestureDetector(
-          onTap: () {
-            Navigator.pushNamed(context, '/venue_detail', arguments: turf);
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.transparent, // Transparent background
-              borderRadius: BorderRadius.circular(12),
-            ),
-            height: 85, // Increased height to prevent overflow
-            child: Row(
-              children: [
-                // Left side - Turf image
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                  ),
-                  child: turf['image'].startsWith('assets/') &&
-                          turf['image'].endsWith('.jpg')
-                      ? Image.asset(
-                          turf[
-                              'image'], // Use the image path from the turf data
-                          height: 80,
-                          width: 80,
-                          fit: BoxFit.cover,
-                        )
-                      : PlaceholderImage(
-                          width: 80,
-                          height: 80,
-                          label: turf['sport'],
-                          color: const Color(0xFF00854A),
-                        ),
+        onTap: () {
+          Navigator.pushNamed(context, '/venue_detail', arguments: turf);
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          height: 85,
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
                 ),
-                // Right side - Turf details
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Turf name
-                        Text(
-                          turf['name'],
-                          style: const TextStyle(
-                            fontFamily: 'Nunito',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                child: PlaceholderImage(
+                  width: 80,
+                  height: 80,
+                  label: turf.sports.isNotEmpty ? turf.sports[0] : 'Turf',
+                  color: const Color(0xFF00854A),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        turf.name,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: const Color(0xFF00854A),
+                            size: 14,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        // Location info
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              color: const Color(0xFF00854A),
-                              size: 14,
+                          const SizedBox(width: 4),
+                          Text(
+                            turf.turfLocation,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              color: Colors.grey.shade400,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${turf['distance']} | ${turf['location']}',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12,
-                                color: Colors.grey.shade400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade800,
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        // Sport type and rating
-                        Row(
-                          children: [
-                            // Sport icon and name
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade800,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    turf['sport'] == 'Basketball'
-                                        ? Icons.sports_basketball
-                                        : Icons.sports_soccer,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.sports_soccer,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  turf.sports.isNotEmpty
+                                      ? turf.sports[0]
+                                      : 'Turf',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 10,
                                     color: Colors.white,
-                                    size: 12,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    turf['sport'],
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 10,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            const Spacer(),
-                            // Rating with black background
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                    size: 12,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    turf['rating'].toString(),
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 11,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    '(${turf['reviews']})',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 10,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ));
+              ),
+            ],
+          ),
+        ),
+      );
     }).toList();
   }
 }
